@@ -183,9 +183,10 @@ elif seccion == "Comparación de cifras":
     eje.set_ylabel("Pesos colombianos (COP)")
     eje.ticklabel_format(axis="y", style="plain")
     eje.grid(axis="y", alpha=0.25)
-st.pyplot(figura, clear_figure=True, use_container_width=True)
-st.write("Gráfica financiera generada correctamente.")
-plt.close(figura)
+    st.pyplot(figura, clear_figure=True, use_container_width=True)
+    st.write("Gráfica financiera generada correctamente.")
+    plt.close(figura)
+    st.subheader("Tabla general de cifras")
 
     st.subheader("Tabla general de cifras")
     st.dataframe(
