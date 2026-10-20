@@ -11,227 +11,332 @@ st.set_page_config(
     layout="wide"
 )
 
+# Datos anuales transcritos de los estados financieros.
+# Deben contrastarse con los documentos oficiales antes de la entrega.
+datos = {
+    "Indicador": [
+        "Activos totales",
+        "Activos corrientes",
+        "Efectivo y equivalentes",
+        "Cuentas por cobrar",
+        "Pasivos totales",
+        "Pasivos corrientes",
+        "Patrimonio total",
+        "Venta neta de servicios",
+        "Costo de servicios",
+        "Utilidad bruta",
+        "Resultado operacional",
+        "Resultado neto"
+    ],
+    "2024": [
+        96585506698.80, 22495973071.87, 10335608090.05,
+        26883724610.49, 3555738799.09, 3555738799.09,
+        93029767899.71, 114183160662.30, 87760112971.79,
+        26423047690.51, 2522647387.00, 3388534241.24
+    ],
+    "2025": [
+        109813912660.87, 32022514010.06, 11023975204.20,
+        33568958657.45, 14991917648.55, 14900256599.44,
+        94821995012.32, 118108012704.28, 101173639203.03,
+        16934373501.25, -7346997297.73, 2505605311.82
+    ]
+}
+
+df = pd.DataFrame(datos).set_index("Indicador")
+
 st.title("📊 Simulador Econométrico Financiero")
 st.subheader("E.S.E. Vida Sinú — Montería, Córdoba")
 st.write(
-    "Herramienta académica para analizar información financiera, "
-    "calcular indicadores y estudiar relaciones entre variables."
+    "Herramienta académica para explorar información financiera, "
+    "comparar indicadores y preparar análisis econométricos."
 )
 
-st.info(
-    "Carga un archivo Excel con datos financieros oficiales. "
-    "Los resultados dependerán de la calidad y estructura de los datos."
+st.warning(
+    "Base anual preliminar 2024–2025. Las cifras deben validarse "
+    "con los estados financieros oficiales. Dos años de datos "
+    "no son suficientes para una regresión econométrica confiable."
 )
 
-archivo = st.file_uploader(
-    "Carga la base de datos en formato Excel (.xlsx)",
-    type=["xlsx"]
+# Navegación
+seccion = st.sidebar.radio(
+    "Menú principal",
+    [
+        "Panel financiero",
+        "Comparación de cifras",
+        "Explorar archivo Excel",
+        "Simulador de regresión"
+    ]
 )
 
-if archivo is not None:
-    try:
-        libro = pd.ExcelFile(archivo)
-        hoja = st.selectbox("Selecciona la hoja", libro.sheet_names)
-        datos = pd.read_excel(archivo, sheet_name=hoja)
+def cop(valor):
+    return "$" + f"{valor:,.0f}".replace(",", ".")
 
-        st.success("Archivo cargado correctamente.")
-        st.subheader("1. Vista previa de los datos")
-        st.write("Filas:", datos.shape[0], "| Columnas:", datos.shape[1])
-        st.dataframe(datos, use_container_width=True)
+if seccion == "Panel financiero":
+    st.header("1. Panel financiero")
+    st.write("Resumen comparativo de los cierres de 2024 y 2025.")
 
-        st.download_button(
-            "Descargar datos cargados en CSV",
-            data=datos.to_csv(index=False).encode("utf-8-sig"),
-            file_name="datos_vida_sinu.csv",
-            mime="text/csv"
-        )
+    razon_2024 = df.loc["Activos corrientes", "2024"] / df.loc[
+        "Pasivos corrientes", "2024"
+    ]
+    razon_2025 = df.loc["Activos corrientes", "2025"] / df.loc[
+        "Pasivos corrientes", "2025"
+    ]
 
-        st.subheader("2. Estadísticas descriptivas")
-        columnas_numericas = datos.select_dtypes(
-            include=np.number
-        ).columns.tolist()
+    efectivo_2024 = df.loc["Efectivo y equivalentes", "2024"] / df.loc[
+        "Pasivos corrientes", "2024"
+    ]
+    efectivo_2025 = df.loc["Efectivo y equivalentes", "2025"] / df.loc[
+        "Pasivos corrientes", "2025"
+    ]
 
-        if columnas_numericas:
-            st.dataframe(
-                datos[columnas_numericas].describe().T,
-                use_container_width=True
-            )
+    margen_neto_2024 = df.loc["Resultado neto", "2024"] / df.loc[
+        "Venta neta de servicios", "2024"
+    ] * 100
+    margen_neto_2025 = df.loc["Resultado neto", "2025"] / df.loc[
+        "Venta neta de servicios", "2025"
+    ] * 100
 
-            variable_grafico = st.selectbox(
-                "Selecciona una variable para visualizar",
-                columnas_numericas
-            )
+    deuda_2024 = df.loc["Pasivos totales", "2024"] / df.loc[
+        "Activos totales", "2024"
+    ] * 100
+    deuda_2025 = df.loc["Pasivos totales", "2025"] / df.loc[
+        "Activos totales", "2025"
+    ] * 100
 
-            figura, eje = plt.subplots()
-            eje.plot(
-                range(1, len(datos) + 1),
-                datos[variable_grafico],
-                marker="o"
-            )
-            eje.set_title(f"Comportamiento de {variable_grafico}")
-            eje.set_xlabel("Observación")
-            eje.set_ylabel(variable_grafico)
-            eje.grid(True, alpha=0.3)
-            st.pyplot(figura)
-            plt.close(figura)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Activos 2025", cop(df.loc["Activos totales", "2025"]))
+    c2.metric("Razón corriente 2025", f"{razon_2025:.2f} veces",
+              delta=f"{razon_2025 - razon_2024:.2f} frente a 2024")
+    c3.metric("Margen neto 2025", f"{margen_neto_2025:.2f}%",
+              delta=f"{margen_neto_2025 - margen_neto_2024:.2f} puntos")
+    c4.metric("Pasivos / activos 2025", f"{deuda_2025:.2f}%",
+              delta=f"{deuda_2025 - deuda_2024:.2f} puntos")
 
-            st.caption(
-                "El eje horizontal representa el orden de las filas, "
-                "no necesariamente meses o fechas."
-            )
+    st.subheader("Indicadores de liquidez")
 
-            st.subheader("3. Simulador de regresión lineal")
-            st.write(
-                "Permite estudiar la asociación entre dos variables "
-                "numéricas. La asociación no demuestra causalidad."
-            )
+    liquidez = pd.DataFrame({
+        "Indicador": ["Razón corriente", "Razón de efectivo"],
+        "2024": [razon_2024, efectivo_2024],
+        "2025": [razon_2025, efectivo_2025]
+    }).set_index("Indicador")
 
-            if len(columnas_numericas) >= 2:
-                variable_x = st.selectbox(
-                    "Variable explicativa (X)",
-                    columnas_numericas,
-                    index=0
+    st.dataframe(liquidez.round(2), use_container_width=True)
+
+    st.subheader("Lectura inicial")
+    st.markdown(
+        f"""
+        - La razón corriente pasó de **{razon_2024:.2f}** a
+          **{razon_2025:.2f} veces**.
+        - La razón de efectivo pasó de **{efectivo_2024:.2f}** a
+          **{efectivo_2025:.2f} veces**.
+        - El margen neto sobre las ventas de servicios pasó de
+          **{margen_neto_2024:.2f}%** a **{margen_neto_2025:.2f}%**.
+        - La relación entre pasivos y activos aumentó de
+          **{deuda_2024:.2f}%** a **{deuda_2025:.2f}%**.
+        """
+    )
+    st.caption(
+        "Estos indicadores son descriptivos y no sustituyen "
+        "una evaluación integral de la situación financiera."
+    )
+
+elif seccion == "Comparación de cifras":
+    st.header("2. Comparación financiera 2024–2025")
+
+    seleccion = st.selectbox(
+        "Selecciona las cuentas que quieres comparar",
+        [
+            "Activos totales",
+            "Activos corrientes",
+            "Efectivo y equivalentes",
+            "Cuentas por cobrar",
+            "Pasivos totales",
+            "Patrimonio total",
+            "Venta neta de servicios",
+            "Costo de servicios",
+            "Utilidad bruta",
+            "Resultado operacional",
+            "Resultado neto"
+        ]
+    )
+
+    valores = df.loc[seleccion]
+    variacion = valores["2025"] - valores["2024"]
+
+    if valores["2024"] != 0:
+        porcentaje = variacion / abs(valores["2024"]) * 100
+    else:
+        porcentaje = np.nan
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Valor 2024", cop(valores["2024"]))
+    c2.metric("Valor 2025", cop(valores["2025"]))
+    c3.metric(
+        "Variación absoluta",
+        cop(variacion),
+        delta=f"{porcentaje:.2f}%" if pd.notna(porcentaje) else "No disponible"
+    )
+
+    figura, eje = plt.subplots()
+    eje.bar(["2024", "2025"], [valores["2024"], valores["2025"]])
+    eje.set_title(seleccion)
+    eje.set_ylabel("Pesos colombianos (COP)")
+    eje.ticklabel_format(axis="y", style="plain")
+    eje.grid(axis="y", alpha=0.25)
+    st.pyplot(figura)
+    plt.close(figura)
+
+    st.subheader("Tabla general de cifras")
+    st.dataframe(
+        df.style.format(lambda x: f"${x:,.2f}"),
+        use_container_width=True
+    )
+
+    st.download_button(
+        "Descargar comparación en CSV",
+        data=df.to_csv().encode("utf-8-sig"),
+        file_name="comparacion_vida_sinu_2024_2025.csv",
+        mime="text/csv"
+    )
+
+elif seccion == "Explorar archivo Excel":
+    st.header("3. Explorar una base de datos")
+    archivo = st.file_uploader(
+        "Carga un archivo Excel (.xlsx)",
+        type=["xlsx"]
+    )
+
+    if archivo is not None:
+        try:
+            libro = pd.ExcelFile(archivo)
+            hoja = st.selectbox("Selecciona la hoja", libro.sheet_names)
+            tabla = pd.read_excel(archivo, sheet_name=hoja)
+
+            st.success("Archivo cargado correctamente.")
+            st.write("Filas:", tabla.shape[0], "| Columnas:", tabla.shape[1])
+            st.dataframe(tabla, use_container_width=True)
+
+            numericas = tabla.select_dtypes(include=np.number).columns.tolist()
+
+            if numericas:
+                st.subheader("Estadísticas descriptivas")
+                st.dataframe(tabla[numericas].describe().T,
+                             use_container_width=True)
+
+                variable = st.selectbox(
+                    "Variable para graficar", numericas
                 )
-                opciones_y = [
-                    c for c in columnas_numericas if c != variable_x
-                ]
-                variable_y = st.selectbox(
-                    "Variable dependiente (Y)",
-                    opciones_y,
-                    index=0
-                )
+                figura, eje = plt.subplots()
+                eje.plot(range(1, len(tabla) + 1), tabla[variable], marker="o")
+                eje.set_title(variable)
+                eje.set_xlabel("Orden de las filas")
+                eje.set_ylabel(variable)
+                eje.grid(alpha=0.25)
+                st.pyplot(figura)
+                plt.close(figura)
+
+            st.download_button(
+                "Descargar tabla como CSV",
+                data=tabla.to_csv(index=False).encode("utf-8-sig"),
+                file_name="datos_vida_sinu.csv",
+                mime="text/csv"
+            )
+        except Exception as error:
+            st.error(f"No se pudo leer el archivo: {error}")
+
+elif seccion == "Simulador de regresión":
+    st.header("4. Simulador de regresión lineal")
+    st.write(
+        "Carga una base con observaciones suficientes para explorar "
+        "la asociación entre dos variables numéricas."
+    )
+    st.info(
+        "No uses únicamente los cierres de 2024 y 2025 para estimar "
+        "una regresión. Se recomienda construir una serie mensual "
+        "validada y metodológicamente comparable."
+    )
+
+    archivo_reg = st.file_uploader(
+        "Carga una base para regresión (.xlsx)",
+        type=["xlsx"],
+        key="archivo_regresion"
+    )
+
+    if archivo_reg is not None:
+        try:
+            libro_reg = pd.ExcelFile(archivo_reg)
+            hoja_reg = st.selectbox(
+                "Hoja de la base", libro_reg.sheet_names
+            )
+            base = pd.read_excel(archivo_reg, sheet_name=hoja_reg)
+            columnas = base.select_dtypes(include=np.number).columns.tolist()
+
+            if len(columnas) >= 2:
+                x = st.selectbox("Variable explicativa (X)", columnas)
+                y_opciones = [c for c in columnas if c != x]
+                y = st.selectbox("Variable dependiente (Y)", y_opciones)
 
                 if st.button("Ejecutar regresión"):
-                    muestra = datos[[variable_x, variable_y]].copy()
-                    muestra = muestra.replace(
+                    muestra = base[[x, y]].replace(
                         [np.inf, -np.inf], np.nan
                     ).dropna()
 
                     if len(muestra) < 8:
                         st.error(
                             f"Solo hay {len(muestra)} observaciones válidas. "
-                            "Se requieren al menos 8 para habilitar este "
-                            "análisis exploratorio; preferiblemente se "
-                            "necesitan más datos y una justificación "
-                            "metodológica."
+                            "No se ejecuta el modelo con tan pocos datos."
                         )
-                    elif muestra[variable_x].nunique() < 2:
-                        st.error(
-                            "La variable X debe tener valores diferentes."
-                        )
+                    elif muestra[x].nunique() < 2:
+                        st.error("La variable X debe tener valores diferentes.")
                     else:
-                        X = sm.add_constant(muestra[variable_x])
-                        Y = muestra[variable_y]
-                        modelo = sm.OLS(Y, X).fit()
+                        modelo = sm.OLS(
+                            muestra[y],
+                            sm.add_constant(muestra[x])
+                        ).fit()
 
-                        st.markdown("#### Resultados del modelo")
-                        c1, c2, c3 = st.columns(3)
-                        c1.metric(
-                            "Observaciones",
-                            str(int(modelo.nobs))
-                        )
-                        c2.metric(
-                            "R²",
-                            f"{modelo.rsquared:.4f}"
-                        )
-                        c3.metric(
-                            "Valor p de X",
-                            f"{modelo.pvalues[variable_x]:.4f}"
-                        )
+                        a, b, c = st.columns(3)
+                        a.metric("Observaciones", int(modelo.nobs))
+                        b.metric("R²", f"{modelo.rsquared:.4f}")
+                        c.metric("Valor p de X", f"{modelo.pvalues[x]:.4f}")
 
                         st.write(
                             f"**Ecuación estimada:** "
                             f"Y = {modelo.params['const']:.4f} "
-                            f"+ ({modelo.params[variable_x]:.4f} × X)"
+                            f"+ ({modelo.params[x]:.4f} × X)"
                         )
-
-                        st.write(
-                            f"**Interpretación de R²:** el modelo explica "
-                            f"aproximadamente {modelo.rsquared * 100:.2f}% "
-                            "de la variación observada en Y dentro de esta "
-                            "muestra."
-                        )
-
-                        p = modelo.pvalues[variable_x]
-                        if p < 0.05:
-                            st.write(
-                                "El coeficiente de X es estadísticamente "
-                                "distinto de cero al nivel del 5%, bajo "
-                                "los supuestos del modelo."
-                            )
-                        else:
-                            st.write(
-                                "No se encuentra evidencia estadística "
-                                "suficiente para afirmar que el coeficiente "
-                                "de X sea distinto de cero al nivel del 5%."
-                            )
-
                         st.text(modelo.summary().as_text())
 
                         figura, eje = plt.subplots()
-                        eje.scatter(
-                            muestra[variable_x], Y,
-                            label="Datos observados"
-                        )
-                        orden = np.argsort(muestra[variable_x].to_numpy())
-                        x_ordenado = muestra[variable_x].to_numpy()[orden]
-                        y_estimado = modelo.predict(
+                        eje.scatter(muestra[x], muestra[y], label="Observaciones")
+                        orden = np.argsort(muestra[x].to_numpy())
+                        xs = muestra[x].to_numpy()[orden]
+                        ys = modelo.predict(
                             sm.add_constant(
-                                pd.Series(
-                                    x_ordenado,
-                                    name=variable_x
-                                ),
+                                pd.DataFrame({x: xs}),
                                 has_constant="add"
                             )
                         )
-                        eje.plot(
-                            x_ordenado,
-                            y_estimado,
-                            label="Regresión estimada"
-                        )
-                        eje.set_xlabel(variable_x)
-                        eje.set_ylabel(variable_y)
+                        eje.plot(xs, ys, label="Regresión estimada")
+                        eje.set_xlabel(x)
+                        eje.set_ylabel(y)
                         eje.legend()
-                        eje.grid(True, alpha=0.3)
+                        eje.grid(alpha=0.25)
                         st.pyplot(figura)
                         plt.close(figura)
 
                         st.warning(
-                            "Antes de interpretar el modelo para el trabajo, "
-                            "revisa la calidad de los datos, los supuestos "
-                            "econométricos y la posible relación contable "
-                            "entre las variables."
+                            "La asociación estadística no demuestra causalidad. "
+                            "Revisa los supuestos y la calidad de los datos."
                         )
             else:
                 st.warning(
-                    "La hoja debe contener al menos dos columnas numéricas "
-                    "para explorar una regresión."
+                    "La hoja debe tener al menos dos columnas numéricas."
                 )
-        else:
-            st.warning(
-                "No se encontraron columnas numéricas. Revisa el formato "
-                "de la hoja seleccionada."
-            )
-
-    except Exception as error:
-        st.error(
-            "No se pudo leer el archivo. Verifica que sea un Excel válido. "
-            f"Detalle técnico: {error}"
-        )
-
-else:
-    st.subheader("¿Qué podrás hacer con este simulador?")
-    st.markdown(
-        """
-        - Consultar y revisar datos financieros.
-        - Obtener estadísticas descriptivas.
-        - Visualizar variables en gráficos.
-        - Ejecutar una regresión lineal cuando existan observaciones suficientes.
-        - Consultar resultados estadísticos para apoyar el análisis académico.
-        """
-    )
+        except Exception as error:
+            st.error(f"No se pudo procesar el archivo: {error}")
 
 st.divider()
 st.caption(
-    "Proyecto académico de Econometría Financiera | E.S.E. Vida Sinú"
+    "Proyecto académico de Econometría Financiera | E.S.E. Vida Sinú | "
+    "Cifras anuales preliminares sujetas a validación."
 )
